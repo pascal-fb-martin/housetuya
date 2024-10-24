@@ -242,6 +242,7 @@ int housetuya_extract (char *buffer, int size, const TuyaSecret *secret,
         memcpy (buffer, data, datalen);
     }
     DEBUGDUMP ("Decoded data received", 0, buffer, datalen);
+    if (datalen < size) buffer[datalen] = 0;
     return datalen;
 }
 

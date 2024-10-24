@@ -25,4 +25,5 @@ const char *housetuya_model_initialize (int argc, const char **argv);
 int housetuya_model_changed (void);
 void housetuya_model_live_config (ParserContext context, int top);
 const char *housetuya_model_refresh (void);
-int housetuya_model_dps_control (const char *id);
+const char *housetuya_model_get_name (const char *id);
+int housetuya_model_get_control (const char *id);

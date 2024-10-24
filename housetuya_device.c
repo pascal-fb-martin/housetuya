@@ -98,6 +98,7 @@
 
 #include "housetuya_crypto.h"
 #include "housetuya_messages.h"
+#include "housetuya_model.h"
 #include "housetuya_device.h"
 
 
@@ -116,6 +117,9 @@ struct DeviceMap {
     time_t pending;
     time_t deadline;
     time_t last_sense;
+    char out[1024];
+    int outlength;
+    int control; // Data point to use for on/off controls.
 };
 
 static struct sockaddr_in DeviceEmptyAddress = {0};
@@ -177,11 +181,20 @@ static int housetuya_device_id_search (const char *id) {
     return -1;
 }
 
+static int housetuya_device_socket_search (int s) {
+    int i;
+    for (i = 0; i < DevicesCount; ++i) {
+        if (Devices[i].socket == s) return i;
+    }
+    return -1;
+}
+
 static void housetuya_device_close (int i) {
     if (Devices[i].socket >= 0) {
         echttp_forget (Devices[i].socket);
         close (Devices[i].socket);
         Devices[i].socket = -1;
+        Devices[i].outlength = 0;
     }
 }
 
@@ -368,12 +381,100 @@ static void housetuya_device_status_update (int device, int status) {
     Devices[device].detected = time(0);
 }
 
+static void housetuya_device_receive (int fd, int mode) {
+
+    char raw[1600];
+    int length = read (fd, raw, sizeof(raw));
+    int device = housetuya_device_socket_search (fd);
+    if (device < 0) {
+        echttp_forget (fd);
+        close (fd);
+        return;
+    }
+    if (length <= 0) {
+        housetuya_device_close (device);
+        return;
+    }
+    struct DeviceMap *dev = Devices + device;
+    char payload[1600];
+    int code;
+    int sequence;
+    length = housetuya_extract (payload, sizeof(payload), &(dev->secret),
+                                &code, &sequence, raw, length);
+    if (code == TUYA_CONTROL) return; // That's the device command response.
+
+    // No matter what happens, we are done with this socket.
+    housetuya_device_close (device);
+
+    if ((code != TUYA_UPDATE) && (code != TUYA_QUERY)) return;
+
+    // The UPDATE response is a subset of the QUERY response. Both
+    // return the value of the control data point, which is the only
+    // item we actually care about here.
+
+    ParserToken json[16];
+    int jsoncount = 16;
+
+    payload[length] = 0;
+    char *input = strdup(payload); // Parsing will destruct the string.
+    const char *error = echttp_json_parse (payload, json, &jsoncount);
+    if (error) {
+        houselog_trace (HOUSE_FAILURE, "CONTROL", "%s: %s", error, input);
+        free (input);
+        return;
+    }
+    free (input);
+
+    char path[32];
+    snprintf (path, sizeof(path), ".dps.%d", dev->control);
+    int state = echttp_json_search (json, path);
+    if (state < 0) return;
+    if (json[state].type != PARSER_BOOL) return;
+
+    housetuya_device_status_update (device, json[state].value.bool);
+}
+
+static void housetuya_device_send (int fd, int mode) {
+
+    int device = housetuya_device_socket_search (fd);
+    if (device < 0) {
+        echttp_forget (fd);
+        close (fd);
+        return;
+    }
+    if (Devices[device].outlength > 0) {
+        write (fd, Devices[device].out, Devices[device].outlength);
+        Devices[device].outlength = 0;
+    }
+    echttp_listen (fd, 1, housetuya_device_receive, 0);
+    return;
+}
+
+static struct DeviceMap *housetuya_device_preamble (int device) {
+    struct DeviceMap *dev = Devices + device;
+    if (dev->control <= 0) {
+        dev->control = housetuya_model_get_control (dev->model);
+        if (dev->control <= 0) return 0;
+    }
+    dev->socket = echttp_connect (dev->host, TuyaTcpPort);
+    if (dev->socket < 0) return 0;
+    return dev;
+}
+
 static void housetuya_device_sense (int device) {
-    // TBD.
+    struct DeviceMap *dev = housetuya_device_preamble (device);
+    if (!dev) return;
+    dev->outlength =
+        housetuya_query (dev->out, sizeof(dev->out), &(dev->secret), 0);
+    echttp_listen (dev->socket, 2, housetuya_device_send, 0);
 }
 
 static void housetuya_device_control (int device, int state) {
-    // TBD.
+    struct DeviceMap *dev = housetuya_device_preamble (device);
+    if (!dev) return;
+    dev->outlength =
+        housetuya_control (dev->out, sizeof(dev->out), &(dev->secret), 0, dev->control, state);
+    echttp_listen (dev->socket, 2, housetuya_device_send, 0);
 }
 
 int housetuya_device_set (int device, int state, int pulse) {
