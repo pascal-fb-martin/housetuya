@@ -155,7 +155,7 @@ const char *housetuya_model_refresh (void) {
         int control = houseconfig_integer (model, ".control");
         if ((!id) || (!name) || (!control)) continue;
         int idx = housetuya_model_search (id);
-        if (idx <= 0) {
+        if (idx < 0) {
             idx = housetuya_model_add (id);
             ModelListChanged = 1;
         }
