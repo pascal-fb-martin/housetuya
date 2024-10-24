@@ -1,8 +1,30 @@
+# HouseTuya - A simple home web server for control of Tuya devices.
+#
+# Copyright 2024, Pascal Martin
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+
+HAPP=housetuya
+HROOT=/usr/local
+SHARE=$(HROOT)/share/house
+
+# Application build. --------------------------------------------
 
 OBJS= housetuya.o housetuya_model.o housetuya_device.o housetuya_messages.o housetuya_crypto.o housetuya_crc.o
 LIBOJS=
-
-SHARE=/usr/local/share/house
 
 all: housetuya tuyacmd
 
@@ -20,33 +42,33 @@ housetuya: $(OBJS)
 tuyacmd: tuyacmd.c housetuya_messages.o housetuya_crypto.o housetuya_crc.o
 	gcc -g -O -o tuyacmd tuyacmd.c housetuya_messages.o housetuya_crypto.o housetuya_crc.o -lssl -lcrypto -lrt
 
-install:
-	if [ -e /etc/init.d/housetuya ] ; then systemctl stop housetuya ; fi
-	mkdir -p /usr/local/bin
+# Distribution agnostic file installation -----------------------
+
+install-app:
+	mkdir -p $(HROOT)/bin
 	mkdir -p /var/lib/house
 	mkdir -p /etc/house
-	rm -f /usr/local/bin/housetuya /etc/init.d/housetuya
-	cp housetuya tuyacmd /usr/local/bin
-	cp init.debian /etc/init.d/housetuya
-	chown root:root /usr/local/bin/housetuya /usr/local/bin/tuyacmd /etc/init.d/housetuya
-	chmod 755 /usr/local/bin/housetuya /usr/local/bin/tuyacmd /etc/init.d/housetuya
+	rm -f $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
+	cp housetuya tuyacmd $(HROOT)/bin
+	chown root:root $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
+	chmod 755 $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
 	mkdir -p $(SHARE)/public/tuya
 	chmod 755 $(SHARE) $(SHARE)/public $(SHARE)/public/tuya
 	cp public/* $(SHARE)/public/tuya
 	chown root:root $(SHARE)/public/tuya/*
 	chmod 644 $(SHARE)/public/tuya/*
 	touch /etc/default/housetuya
-	systemctl daemon-reload
-	systemctl enable housetuya
-	systemctl start housetuya
 
-uninstall:
-	systemctl stop housetuya
-	systemctl disable housetuya
-	rm -f /usr/local/bin/housetuya /usr/local/bin/tuyacmd /etc/init.d/housetuya
+uninstall-app:
+	rm -f $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
 	rm -rf $(SHARE)/public/tuya
-	systemctl daemon-reload
 
-purge: uninstall
+purge-app:
+
+purge-config:
 	rm -rf /etc/house/tuya.config /etc/default/housetuya
+
+# System installation. ------------------------------------------
+
+include $(SHARE)/install.mak
 
