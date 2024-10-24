@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel=stylesheet type="text/css" href="/house.css" title="House">
+<script>
+
+var countIoShown = 0;
+var countProductShown = 0;
+
+function saveConfig () {
+
+    var form = document.forms;
+    var newconfig = new Object();
+    newconfig.tuya = new Object();
+    newconfig.tuya.devices = new Array();
+
+    for (var i = 0; i < countIoShown; ++i) {
+
+        var prefix = 'tuya_'+i+'_';
+        var device = new Object();
+        device.name = form.iolistform[prefix+'name'].value;
+        if (!device.name) continue;
+        device.id = form.iolistform[prefix+'id'].value;
+        if (!device.id) continue;
+        var model = form.iolistform[prefix+'model'].value;
+        if (model.length)
+            device.model = model
+        var key = form.iolistform[prefix+'key'].value;
+        if (key.length)
+            device.key = key
+        var description = form.iolistform[prefix+'desc'].value;
+        if (description)
+            device.description = description;
+        newconfig.tuya.devices.push(device);
+    }
+
+    if (countProductShown > 0) {
+        newconfig.tuya.models = new Array();
+        for (var i = 0; i < countProductShown; ++i) {
+            var prefix = 'tuyaprod_'+i+'_';
+            var model = new Object();
+            model.name = form.productform[prefix+'name'].value;
+            if (!model.name) continue;
+            model.id = form.productform[prefix+'id'].value;
+            if (!model.id) continue;
+            model.control = parseInt(form.productform[prefix+'control'].value);
+            if (!model.control) continue;
+            newconfig.tuya.models.push(model);
+        }
+    }
+
+    var command = new XMLHttpRequest();
+    command.open("POST", "/tuya/config");
+    command.setRequestHeader('Content-Type', 'application/json');
+    command.onreadystatechange = function () {
+        if (command.readyState === 4 && command.status !== 200) {
+            window.alert ('Operation failed (error '+command.status+')!');
+        }
+    }
+    command.send(JSON.stringify(newconfig));
+}
+
+function showProduct (name, id, control ) {
+
+    var outer = document.createElement("tr");
+
+    var products = document.getElementsByClassName ('products')[0];
+    var prefix = 'tuyaprod_'+countProductShown+'_';
+    var inner = document.createElement("td");
+    var entry = document.createElement("input");
+    entry.type = 'text';
+    entry.name = prefix+'name';
+    entry.value = name;
+    entry.placeholder = "User Friendly Name";
+    inner.appendChild(entry);
+    outer.appendChild(inner);
+
+    inner = document.createElement("td");
+    entry = document.createElement("input");
+    entry.type = 'text';
+    entry.name = prefix+'id';
+    entry.value = id;
+    entry.placeholder = 'ID';
+    entry.inputmode = 'numeric';
+    inner.appendChild(entry);
+    outer.appendChild(inner);
+
+    inner = document.createElement("td");
+    entry = document.createElement("input");
+    entry.type = 'number';
+    entry.name = prefix+'control';
+    if (control)
+        entry.value = control;
+    else
+        entry.value = '';
+    entry.placeholder = 'Data Point Index';
+    entry.inputmode = 'numeric';
+    inner.appendChild(entry);
+    outer.appendChild(inner);
+
+    products.appendChild(outer);
+    countProductShown += 1;
+}
+
+function addProduct () {
+    showProduct ('', '');
+}
+
+function showDevice (name, id, model, key, description) {
+
+    var outer = document.createElement("tr");
+
+    var iolist = document.getElementsByClassName ('iolist')[0];
+    var prefix = 'tuya_'+countIoShown+'_';
+    var inner = document.createElement("td");
+    var entry = document.createElement("input");
+    entry.type = 'text';
+    entry.name = prefix+'name';
+    entry.value = name;
+    entry.placeholder = 'Name';
+    inner.appendChild(entry);
+    outer.appendChild(inner);
+
+    inner = document.createElement("td");
+    entry = document.createElement("input");
+    entry.type = 'text';
+    entry.name = prefix+'id';
+    entry.value = id;
+    entry.placeholder = 'ID';
+    entry.disabled = true;
+    inner.appendChild(entry);
+    outer.appendChild(inner);
+
+    inner = document.createElement("td");
+    entry = document.createElement("input");
+    entry.type = 'text';
+    entry.name = prefix+'model';
+    entry.value = model;
+    entry.placeholder = 'Product ID';
+    entry.disabled = true;
+    inner.appendChild(entry);
+    outer.appendChild(inner);
+
+    inner = document.createElement("td");
+    entry = document.createElement("input");
+    entry.type = 'text';
+    entry.name = prefix+'key';
+    if (key)
+        entry.value = key;
+    else
+        entry.value = '';
+    entry.placeholder = 'Local Key';
+    inner.appendChild(entry);
+    outer.appendChild(inner);
+
+    inner = document.createElement("td");
+    entry = document.createElement("input");
+    entry.type = 'text';
+    entry.name = prefix+'desc';
+    entry.placeholder = 'Text';
+    if (description)
+        entry.value = description;
+    else
+        entry.value = '';
+    inner.appendChild(entry);
+    outer.appendChild(inner);
+
+    iolist.appendChild(outer);
+    countIoShown += 1;
+}
+
+function tuyaShowConfig (response) {
+
+   var iolist = document.getElementsByClassName ('iolist')[0];
+   var devices = response.tuya.devices;
+   for (var i = 0; i < devices.length; i++) {
+      var device = devices[i];
+      if (!device.description) device.description = '';
+      showDevice (device.name, device.id, device.model, device.key, device.description);
+   }
+
+   var models = response.tuya.models;
+   if (models)
+      for (var i = 0; i < models.length; i++)
+          showProduct (models[i].name, models[i].id, models[i].control);
+}
+
+function tuyaConfig () {
+    var command = new XMLHttpRequest();
+    command.open("GET", "/tuya/config");
+    command.onreadystatechange = function () {
+        if (command.readyState === 4 && command.status === 200) {
+            tuyaShowConfig (JSON.parse(command.responseText));
+        }
+    }
+    command.send(null);
+}
+
+function tuyaShowStatus (response) {
+    document.getElementById('portal').href =
+        'http://'+response.proxy+'/index.html';
+    document.getElementsByTagName('title')[0].innerHTML =
+        response.host+' - Tuya Devices';
+}
+
+function tuyaStatus () {
+    var command = new XMLHttpRequest();
+    command.open("GET", "/tuya/status");
+    command.onreadystatechange = function () {
+        if (command.readyState === 4 && command.status === 200) {
+            tuyaShowStatus (JSON.parse(command.responseText));
+        }
+    }
+    command.send(null);
+}
+
+window.onload = function() {
+   tuyaConfig();
+   tuyaStatus();
+};
+</script>
+<head>
+   <title>Tuya Devices</title>
+</head>
+<body>
+   <table class="housetopcontainer">
+   <tr><td>
+   <table class="housetop">
+   <tr>
+   <td><a id="portal" href="/index.html">Portal</a></td>
+   <td><a href="/tuya/index.html">Tuya</a></td>
+   <td><a href="/tuya/events.html">Events</a></td>
+   <td><span>Config</span></td>
+   </tr>
+   </table>
+   </td></tr>
+   </table>
+   <h1>Devices</h1>
+   <form name="iolistform">
+   <table class="housewidetable iolist">
+      <tr>
+         <th width="15%">NAME</th>
+         <th width="20%">ID</th>
+         <th width="15%">MODEL</th>
+         <th width="15%">KEY</th>
+         <th width="35%">DESCRIPTION</th>
+      </tr>
+   </table>
+   </form>
+   <h1>Known Products</h1>
+   <form name="productform">
+   <table class="housewidetable products">
+      <tr>
+         <th width="40%">NAME</th>
+         <th width="40%">ID</th>
+         <th width="20%">CONTROL</th>
+      </tr>
+   </table>
+   </form>
+   <div style="margin: 15px; float: right" class="housebuttons">
+      <button class="actionbutton" onclick="addProduct()">Add Product</button>
+      <button class="actionbutton" onclick="saveConfig()">Save</button>
+   </div>
+</body>
+</html>
+
