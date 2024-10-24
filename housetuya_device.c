@@ -204,6 +204,7 @@ static int housetuya_device_add (const char *name,
     Devices[i].secret.id = strdup (id);
     Devices[i].model = strdup (model);
     Devices[i].socket = -1;
+    DeviceListChanged = 1;
     return i;
 }
 
@@ -214,6 +215,7 @@ static void housetuya_device_refresh_string (char **store, const char *value) {
             free (*store);
         }
         *store = strdup(value);
+        DeviceListChanged = 1;
     } else {
         if (*store) {
             free (*store);
@@ -279,7 +281,6 @@ static void housetuya_device_discovery (int fd, int mode) {
         index =  housetuya_device_add (name,
                                        json[id].value.string,
                                        json[product].value.string);
-        DeviceListChanged = 1;
     }
 
     // The following items always come from the device, overwrite existing.

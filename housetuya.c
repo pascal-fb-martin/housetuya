@@ -234,7 +234,10 @@ static void housetuya_background (int fd, int mode) {
 static void housetuya_config_listener (const char *name, time_t timestamp,
                                        const char *data, int length) {
     houselog_event ("CONFIG", houseconfig_name(), "LOAD", "FROM DEPOT %s", name);
-    if (!houseconfig_update (data)) housetuya_refresh();
+    if (!houseconfig_update (data)) {
+        housetuya_refresh();
+        WasLoadedFromDepot = 1;
+    }
 }
 
 static void housetuya_protect (const char *method, const char *uri) {
