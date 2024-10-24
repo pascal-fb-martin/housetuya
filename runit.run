@@ -1,0 +1,9 @@
+#!/bin/sh
+OPTS=
+HTTPOPTS=
+HOUSEOPTS=
+OTHEROPTS=
+if [ -e /etc/default/housetuya ] ; then . /etc/default/housetuya ; fi
+sv start houseportal || exit 1
+exec /usr/local/bin/housetuya $HTTPOPTS $HOUSEOPTS $OTHEROPTS $OPTS
+
