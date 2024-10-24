@@ -24,6 +24,8 @@ This service is not dependent on the Tuya cloud.
 
 Otherwise installing [houselights](https://github.com/pascal-fb-martin/houselights) is recommended, but not necessarily on the same computer.
 
+The [housesaga](https://github.com/pascal-fb-martin/housesaga) and [housedepot](https://github.com/pascal-fb-martin/housedepot) projects are also highly recommended, to store logs and configuration files in a more centralized fashion.
+
 ## Initial Device Setup
 
 Each device must be setup using the Feit Electric phone app, or the phone app recommended by your specific vendor. The protocol for setting up devices has not been reverse engineered at that time.
@@ -62,7 +64,7 @@ The configuration is stored in file /etc/house/tuya.json. A typical example of c
     }
 }
 ```
-The key field is only required if the device is a version 3.3 device. Other information (i.e. IP address, version, etc.) is retrieved by listening to the devices present on the network.
+The "key" field represents the device's local key and is required if the device uses the Tuya protocol version 3.3 or above. Other information (i.e. "host", protocol version, etc.) is retrieved by listening to the devices present on the network.
 
 The devices "model" and "host" fields are saved in the configuration for information only. The application does not use these fields because information is provided by the devices itself during discovery.
 
@@ -77,6 +79,14 @@ The product key can be used to identify what model the device belongs to.
 At this time, this application is only concerned with the data point linked to the on/off command.
 
 A list of known models is included in the configuration. The application comes with a (rather incomplete) initial list, and the user must manually add an entry for each model present on his network.
+
+## Obtaining the Local Key
+
+The local key is not disclosed by the device, obviously. The only way to obtain this key is to "extend" your account (created using the Tuya app) into a free developper account and then create an IOT project (also known as a Cloud project).
+
+Once this was done, the devices initialized through the Tuya app can be listed, and their details revealed. The Tuya web site changes from time to time, so this is a discovery expedition every time.
+
+A free Tuya developer account expires after a month or so, but it can be renewed when needed.
 
 ## Tuya Protocol
 
