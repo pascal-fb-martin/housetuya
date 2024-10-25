@@ -137,6 +137,16 @@ static int TuyaUdpPort[2] = {6666, 6667};
 static int TuyaUdpSocket[2] = {-1, -1};
 
 
+static const char *housetuya_hexdump (const char *data, int length) {
+
+    static char hex[1024];
+    int i;
+    int cursor = 0;
+    for (i = 0; i < length; ++i)
+        cursor += snprintf (hex+cursor, sizeof(hex)-cursor, "%02x", data[i]);
+    return hex;
+}
+
 int housetuya_device_count (void) {
     return DevicesCount;
 }
@@ -200,7 +210,7 @@ static void housetuya_device_close (int i) {
 
 static void housetuya_device_reset (int i, int status) {
     Devices[i].commanded = Devices[i].status = status;
-    Devices[i].detected = Devices[i].pending = Devices[i].deadline = 0;
+    Devices[i].pending = Devices[i].deadline = 0;
     housetuya_device_close (i);
 }
 
@@ -309,9 +319,11 @@ static void housetuya_device_discovery (int fd, int mode) {
         housetuya_device_refresh_string
             (&(Devices[index].host), inet_ntoa(addr.sin_addr));
     }
-    if (!Devices[index].detected)
+    if (!Devices[index].detected) {
         houselog_event ("DEVICE", Devices[index].name, "DETECTED",
                         "ADDRESS %s", Devices[index].host);
+        Devices[index].last_sense = 0; // Force immediate query.
+    }
     Devices[index].detected = time(0);
 }
 
@@ -396,30 +408,33 @@ static void housetuya_device_receive (int fd, int mode) {
         return;
     }
     struct DeviceMap *dev = Devices + device;
+    if (echttp_isdebug())
+        houselog_trace (HOUSE_INFO, "PROTOCOL", "received from %s (%d bytes): %s", dev->secret.id, length, housetuya_hexdump(raw, length));
     char payload[1600];
     int code;
     int sequence;
     length = housetuya_extract (payload, sizeof(payload), &(dev->secret),
                                 &code, &sequence, raw, length);
     if (code == TUYA_CONTROL) return; // That's the device command response.
+    if (length <= 4) return;
 
     // No matter what happens, we are done with this socket.
     housetuya_device_close (device);
 
-    if ((code != TUYA_UPDATE) && (code != TUYA_QUERY)) return;
+    if ((code != TUYA_STATUS) && (code != TUYA_QUERY)) return;
 
-    // The UPDATE response is a subset of the QUERY response. Both
+    // The STATUS response is a subset of the QUERY response. Both
     // return the value of the control data point, which is the only
     // item we actually care about here.
 
-    ParserToken json[16];
-    int jsoncount = 16;
+    ParserToken json[256]; // Plan for devices with a lot of data points.
+    int jsoncount = 256;
 
     payload[length] = 0;
     char *input = strdup(payload); // Parsing will destruct the string.
     const char *error = echttp_json_parse (payload, json, &jsoncount);
     if (error) {
-        houselog_trace (HOUSE_FAILURE, "CONTROL", "%s: %s", error, input);
+        houselog_trace (HOUSE_FAILURE, "PROTOCOL", "%s: %s", error, input);
         free (input);
         return;
     }
@@ -428,8 +443,14 @@ static void housetuya_device_receive (int fd, int mode) {
     char path[32];
     snprintf (path, sizeof(path), ".dps.%d", dev->control);
     int state = echttp_json_search (json, path);
-    if (state < 0) return;
-    if (json[state].type != PARSER_BOOL) return;
+    if (state < 0) {
+        houselog_trace (HOUSE_FAILURE, "PROTOCOL", "missing item %s", path);
+        return;
+    }
+    if (json[state].type != PARSER_BOOL) {
+        houselog_trace (HOUSE_FAILURE, "PROTOCOL", "item %s is not a boolean", path);
+        return;
+    }
 
     housetuya_device_status_update (device, json[state].value.bool);
 }
@@ -452,10 +473,13 @@ static void housetuya_device_send (int fd, int mode) {
 
 static struct DeviceMap *housetuya_device_preamble (int device) {
     struct DeviceMap *dev = Devices + device;
+    if (!dev->ipaddress) return 0;
+    if (dev->encrypted && (!dev->secret.id)) return 0;
     if (dev->control <= 0) {
         dev->control = housetuya_model_get_control (dev->model);
         if (dev->control <= 0) return 0;
     }
+    housetuya_device_close (device); // Cleanup.
     dev->socket = echttp_connect (dev->host, TuyaTcpPort);
     if (dev->socket < 0) return 0;
     return dev;
@@ -466,6 +490,8 @@ static void housetuya_device_sense (int device) {
     if (!dev) return;
     dev->outlength =
         housetuya_query (dev->out, sizeof(dev->out), &(dev->secret), 0);
+    if (echttp_isdebug())
+        houselog_trace (HOUSE_INFO, "PROTOCOL", "Sending QUERY to %s (%d bytes): %s", dev->secret.id, dev->outlength, housetuya_hexdump(dev->out, dev->outlength));
     echttp_listen (dev->socket, 2, housetuya_device_send, 0);
 }
 
@@ -474,6 +500,8 @@ static void housetuya_device_control (int device, int state) {
     if (!dev) return;
     dev->outlength =
         housetuya_control (dev->out, sizeof(dev->out), &(dev->secret), 0, dev->control, state);
+    if (echttp_isdebug())
+        houselog_trace (HOUSE_INFO, "PROTOCOL", "Sending CONTROL %d to %s (%d bytes): %s", state, dev->secret.id, dev->outlength, housetuya_hexdump(dev->out, dev->outlength));
     echttp_listen (dev->socket, 2, housetuya_device_send, 0);
 }
 
@@ -498,13 +526,15 @@ int housetuya_device_set (int device, int state, int pulse) {
         houselog_event ("DEVICE", Devices[device].name, "SET", "%s", namedstate);
     }
     Devices[device].commanded = state;
-    Devices[device].pending = now + 5;
+    if (Devices[device].pending) return 1; // Don't overstep.
+    Devices[device].pending = now + 10;
 
     // Only send a command if we detected the device on the network.
     //
     if (Devices[device].detected) {
         housetuya_device_control (device, state);
     }
+    return 0;
 }
 
 void housetuya_device_periodic (time_t now) {
@@ -518,8 +548,10 @@ void housetuya_device_periodic (time_t now) {
     for (i = 0; i < DevicesCount; ++i) {
 
         if (now >= Devices[i].last_sense + 35) {
-            if (Devices[i].ipaddress != 0)
-                housetuya_device_sense(i);
+            if ((!Devices[i].pending) && (Devices[i].ipaddress != 0)) {
+                housetuya_device_close (i); // Cleanup, if ever.
+                housetuya_device_sense (i);
+            }
             Devices[i].last_sense = now;
         }
 
@@ -527,6 +559,7 @@ void housetuya_device_periodic (time_t now) {
         if (Devices[i].detected > 0 && Devices[i].detected < now - 100) {
             houselog_event ("DEVICE", Devices[i].name, "SILENT",
                             "ADDRESS %s", Devices[i].host);
+            housetuya_device_close (i);
             housetuya_device_reset (i, 0);
             Devices[i].detected = 0;
         }
@@ -544,9 +577,9 @@ void housetuya_device_periodic (time_t now) {
                     houselog_event ("DEVICE", Devices[i].name, "RETRY", state);
                     housetuya_device_control (i, Devices[i].commanded);
                 }
-            } else {
-                if (Devices[i].pending)
-                    houselog_event ("DEVICE", Devices[i].name, "TIMEOUT", "");
+            } else if (Devices[i].pending) {
+                houselog_event ("DEVICE", Devices[i].name, "TIMEOUT", "");
+                housetuya_device_close (i);
                 housetuya_device_reset (i, Devices[i].status);
             }
         }

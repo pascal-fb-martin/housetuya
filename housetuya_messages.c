@@ -102,11 +102,14 @@ static void housetuya_dump (const char *intro, int ip, const char *data, int siz
                   0xff & (ip >> 24), 0xff & (ip >> 16), 0xff & (ip >> 8), 0xff & ip);
     } else origin[0] = 0;
 
-    printf ("%s%s, length %d:", intro, origin, size);
+    char hex[1024];
     int i;
-    for (i = 0; i < size; ++i)
-        printf ("%02x", data[i]);
-    printf ("\n");
+    int cursor = 0;
+    for (i = 0; i < size; ++i) {
+        cursor += snprintf (hex+cursor, sizeof(hex)-cursor, "%02x", data[i]);
+        if (cursor >= sizeof(hex)) break;
+    }
+    printf ("%s%s, length %d: %s\n", intro, origin, size, hex);
 }
 
 
