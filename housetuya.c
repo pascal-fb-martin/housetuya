@@ -206,8 +206,12 @@ static const char *housetuya_config (const char *method, const char *uri,
 
 static void housetuya_background (int fd, int mode) {
 
+    static time_t LastCall = 0;
     static time_t LastRenewal = 0;
     time_t now = time(0);
+
+    if (now == LastCall) return;
+    LastCall = now;
 
     if (use_houseportal) {
         static const char *path[] = {"control:/tuya"};
