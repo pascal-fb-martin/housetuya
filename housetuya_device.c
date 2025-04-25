@@ -54,8 +54,9 @@
  *
  * int    housetuya_device_commanded (int point);
  * time_t housetuya_device_deadline (int point);
+ * int    housetuya_device_priority (int point);
  *
- *    Return the last commanded state, or the command deadline, for
+ *    Return the last commanded state, deadline or priority for
  *    the specified tuya device.
  *
  * int housetuya_device_get (int point);
@@ -115,8 +116,9 @@ struct DeviceMap {
     int encrypted;
     int status;
     int commanded;
-    time_t pending;
-    time_t deadline;
+    int priority;
+    time_t pending;  // Deadline for retrying the latest control.
+    time_t deadline; // When the device will timeout and be turned off.
     time_t last_sense;
     char out[1024];
     int outlength;
@@ -173,6 +175,11 @@ time_t housetuya_device_deadline (int point) {
     return Devices[point].deadline;
 }
 
+int housetuya_device_priority (int point) {
+    if (point < 0 || point > DevicesCount) return 0;
+    return Devices[point].priority;
+}
+
 const char *housetuya_device_failure (int point) {
     if (point < 0 || point > DevicesCount) return 0;
     if (!Devices[point].detected) return "silent";
@@ -213,6 +220,7 @@ static void housetuya_device_reset (int i, int status) {
     Devices[i].commanded = Devices[i].status = status;
     Devices[i].pending = Devices[i].deadline = 0;
     housetuya_device_close (i);
+    Devices[i].priority = 0;
 }
 
 static int housetuya_device_add (const char *name,
@@ -506,17 +514,43 @@ static void housetuya_device_control (int device, int state) {
     echttp_listen (dev->socket, 2, housetuya_device_send, 0);
 }
 
-int housetuya_device_set (int device, int state, int pulse, const char *cause) {
+void housetuya_device_set
+         (int device, int state, int pulse, const char *cause) {
+
+    if (device < 0 || device > DevicesCount) return;
 
     const char *namedstate = state?"on":"off";
     time_t now = time(0);
+
+    // Manual controls have higher priority than others (schedule or event
+    // based controls). The goal is to prevent an automatic control from
+    // overriding a human action. Humans come first.
+    // So:
+    // - If the device is requested on, record the priority of the request.
+    //   (The priority of a request cannot be lowered by a subsequent request,
+    //   so the priority only goes up in this case.)
+    // - If the device is requested off, ignore a lower priority request,
+    //   otherwise reset the device priority.
+    //
+    int priority;
+    if (!cause)
+        priority = 1; // In case of doubt, assume manual.
+    else
+        priority = strstr(cause, "MANUAL")?1:0;
+
+    if (!state) {
+        if (priority < Devices[device].priority) return;
+        Devices[device].priority = 0; // No priority when the device is off.
+    } else {
+        if (priority > Devices[device].priority)
+            Devices[device].priority = priority;
+    }
 
     char comment[256];
     if (cause)
         snprintf (comment, sizeof(comment), " (%s)", cause);
     else
         comment[0] = 0;
-    if (device < 0 || device > DevicesCount) return 0;
 
     if (echttp_isdebug()) {
         if (pulse) fprintf (stderr, "set %s to %s at %ld (pulse %ds)%s\n", Devices[device].name, namedstate, now, pulse, comment);
@@ -533,7 +567,7 @@ int housetuya_device_set (int device, int state, int pulse, const char *cause) {
                         "%s%s", namedstate, comment);
     }
     Devices[device].commanded = state;
-    if (Devices[device].pending) return 1; // Don't overstep.
+    if (Devices[device].pending) return; // Don't overstep.
     Devices[device].pending = now + 10;
 
     // Only send a command if we detected the device on the network.
@@ -541,7 +575,6 @@ int housetuya_device_set (int device, int state, int pulse, const char *cause) {
     if (Devices[device].detected) {
         housetuya_device_control (device, state);
     }
-    return 0;
 }
 
 void housetuya_device_periodic (time_t now) {
@@ -576,6 +609,7 @@ void housetuya_device_periodic (time_t now) {
             Devices[i].commanded = 0;
             Devices[i].pending = now + 5;
             Devices[i].deadline = 0;
+            Devices[i].priority = 0; // Done with any request.
         }
         if (Devices[i].status != Devices[i].commanded) {
             if (Devices[i].pending > now) {

@@ -35,8 +35,9 @@ const char *housetuya_device_failure (int point);
 
 int    housetuya_device_commanded (int point);
 time_t housetuya_device_deadline  (int point);
+int    housetuya_device_priority  (int point);
 int    housetuya_device_get       (int point);
-int    housetuya_device_set       (int point, int state,
+void   housetuya_device_set       (int point, int state,
                                    int pulse, const char *cause);
 
 void housetuya_device_periodic (time_t now);

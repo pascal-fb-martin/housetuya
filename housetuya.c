@@ -81,6 +81,7 @@ static const char *housetuya_status (const char *method, const char *uri,
         time_t pulsed = housetuya_device_deadline(i);
         const char *name = housetuya_device_name(i);
         const char *status = housetuya_device_failure(i);
+        int priority = housetuya_device_priority(i);
         if (!status) status = housetuya_device_get(i)?"on":"off";
         const char *commanded = housetuya_device_commanded(i)?"on":"off";
 
@@ -89,6 +90,8 @@ static const char *housetuya_status (const char *method, const char *uri,
         echttp_json_add_string (context, point, "command", commanded);
         if (pulsed)
             echttp_json_add_integer (context, point, "pulse", (int)pulsed);
+        if (priority)
+            echttp_json_add_bool (context, point, "priority", priority);
         echttp_json_add_string (context, point, "gear", "light");
     }
     const char *error = echttp_json_export (context, buffer, sizeof(buffer));
