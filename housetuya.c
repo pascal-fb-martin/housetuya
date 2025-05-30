@@ -49,8 +49,6 @@
 #include "housetuya_model.h"
 #include "housetuya_device.h"
 
-static int use_houseportal = 0;
-
 static int WasLoadedFromDepot = 0;
 
 int housetuya_isdebug (void) {
@@ -211,22 +209,12 @@ static const char *housetuya_config (const char *method, const char *uri,
 static void housetuya_background (int fd, int mode) {
 
     static time_t LastCall = 0;
-    static time_t LastRenewal = 0;
     time_t now = time(0);
 
     if (now == LastCall) return;
     LastCall = now;
 
-    if (use_houseportal) {
-        static const char *path[] = {"control:/tuya"};
-        if (now >= LastRenewal + 60) {
-            if (LastRenewal > 0)
-                houseportal_renew();
-            else
-                houseportal_register (echttp_port(4), path, 1);
-            LastRenewal = now;
-        }
-    }
+    houseportal_background (now);
     housetuya_device_periodic(now);
     if (housetuya_device_changed() || housetuya_model_changed()) {
         const char *buffer = housetuya_export();
@@ -269,8 +257,9 @@ int main (int argc, const char **argv) {
 
     argc = echttp_open (argc, argv);
     if (echttp_dynamic_port()) {
+        static const char *path[] = {"control:/tuya"};
         houseportal_initialize (argc, argv);
-        use_houseportal = 1;
+        houseportal_declare (echttp_port(4), path, 1);
     }
     housediscover_initialize (argc, argv);
     houselog_initialize ("tuya", argc, argv);
