@@ -197,10 +197,8 @@ function tuyaConfig () {
 }
 
 function tuyaShowStatus (response) {
-    document.getElementById('portal').href =
-        'http://'+response.proxy+'/index.html';
     document.getElementsByTagName('title')[0].innerHTML =
-        response.host+' - Tuya Devices';
+        response.host+' - Tuya Config';
 }
 
 function tuyaStatus () {
@@ -227,8 +225,7 @@ window.onload = function() {
    <tr><td>
    <table class="housetop">
    <tr>
-   <td><a id="portal" href="/index.html">Portal</a></td>
-   <td><a href="/tuya/index.html">Tuya</a></td>
+   <td><a href="/tuya/index.html">Devices</a></td>
    <td><a href="/tuya/events.html">Events</a></td>
    <td><span>Config</span></td>
    </tr>
