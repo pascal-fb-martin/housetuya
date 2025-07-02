@@ -44,7 +44,14 @@ tuyacmd: tuyacmd.c housetuya_messages.o housetuya_crypto.o housetuya_crc.o
 
 # Distribution agnostic file installation -----------------------
 
-install-app:
+install-ui:
+	mkdir -p $(SHARE)/public/tuya
+	chmod 755 $(SHARE) $(SHARE)/public $(SHARE)/public/tuya
+	cp public/* $(SHARE)/public/tuya
+	chown root:root $(SHARE)/public/tuya/*
+	chmod 644 $(SHARE)/public/tuya/*
+
+install-app: install-ui
 	mkdir -p $(HROOT)/bin
 	mkdir -p /var/lib/house
 	mkdir -p /etc/house
@@ -52,11 +59,6 @@ install-app:
 	cp housetuya tuyacmd $(HROOT)/bin
 	chown root:root $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
 	chmod 755 $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
-	mkdir -p $(SHARE)/public/tuya
-	chmod 755 $(SHARE) $(SHARE)/public $(SHARE)/public/tuya
-	cp public/* $(SHARE)/public/tuya
-	chown root:root $(SHARE)/public/tuya/*
-	chmod 644 $(SHARE)/public/tuya/*
 	touch /etc/default/housetuya
 
 uninstall-app:
