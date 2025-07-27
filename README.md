@@ -8,6 +8,7 @@ This is a web server to give access to Tuya WiFi devices. This server can sense 
 This service is not really meant to be accessed directly by end-users: these should use [houselights](https://github.com/pascal-fb-martin/houselights) to control Tuya devices.
 
 So far HouseTuya has been tested with the following US models:
+
 * Feit Electric Smart Bulbs (Costco)
 
 This service is not dependent on the Tuya cloud.
