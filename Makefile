@@ -16,10 +16,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor,
 # Boston, MA  02110-1301, USA.
+#
+# WARNING
+#       
+# This Makefile depends on echttp and houseportal (dev) being installed.
+
+prefix=/usr/local
+SHARE=$(prefix)/share/house
+        
+INSTALL=/usr/bin/install
 
 HAPP=housetuya
-HROOT=/usr/local
-SHARE=$(HROOT)/share/house
 
 # Application build. --------------------------------------------
 
@@ -37,38 +44,31 @@ rebuild: clean all
 	gcc -c -g -O -o $@ $<
 
 housetuya: $(OBJS)
-	gcc -g -O -o housetuya $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lgpiod -lrt
+	gcc -g -O -o housetuya $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lgpiod -lmagic -lmagic -lrt
 
 tuyacmd: tuyacmd.c housetuya_messages.o housetuya_crypto.o housetuya_crc.o
 	gcc -g -O -o tuyacmd tuyacmd.c housetuya_messages.o housetuya_crypto.o housetuya_crc.o -lssl -lcrypto -lrt
 
 # Distribution agnostic file installation -----------------------
 
-install-ui:
-	mkdir -p $(SHARE)/public/tuya
-	chmod 755 $(SHARE) $(SHARE)/public $(SHARE)/public/tuya
-	cp public/* $(SHARE)/public/tuya
-	chown root:root $(SHARE)/public/tuya/*
-	chmod 644 $(SHARE)/public/tuya/*
+install-ui: install-preamble
+	$(INSTALL) -m 0755 -d $(DESTDIR)$(SHARE)/public/tuya
+	$(INSTALL) -m 0644 public/* $(DESTDIR)$(SHARE)/public/tuya
 
 install-app: install-ui
-	mkdir -p $(HROOT)/bin
-	mkdir -p /var/lib/house
-	mkdir -p /etc/house
-	rm -f $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
-	cp housetuya tuyacmd $(HROOT)/bin
-	chown root:root $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
-	chmod 755 $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
-	touch /etc/default/housetuya
+	$(INSTALL) -m 0755 -s housetuya tuyacmd $(DESTDIR)$(prefix)/bin
+	touch $(DESTDIR)/etc/default/housetuya
 
 uninstall-app:
-	rm -f $(HROOT)/bin/housetuya $(HROOT)/bin/tuyacmd
-	rm -rf $(SHARE)/public/tuya
+	rm -f $(DESTDIR)$(prefix)/bin/housetuya
+	rm -f $(DESTDIR)$(prefix)/bin/tuyacmd
+	rm -rf $(DESTDIR)$(SHARE)/public/tuya
 
 purge-app:
 
 purge-config:
-	rm -rf /etc/house/tuya.config /etc/default/housetuya
+	rm -f $(DESTDIR)/etc/house/tuya.config
+	rm -f $(DESTDIR)/etc/default/housetuya
 
 # System installation. ------------------------------------------
 
