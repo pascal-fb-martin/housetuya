@@ -1,4 +1,5 @@
 # HouseTuya
+
 A House web service to control Tuya devices (lights, plugs, valves..)
 
 ## Overview
@@ -34,6 +35,7 @@ Each device must be setup using the Feit Electric phone app, or the phone app re
 ## Configuration
 The preferred method is to configure the devices from the Configure web page.
 The configuration is stored in file /etc/house/tuya.json. A typical example of configuration is:
+
 ```
 {
     "tuya" : {
@@ -65,6 +67,7 @@ The configuration is stored in file /etc/house/tuya.json. A typical example of c
     }
 }
 ```
+
 The "key" field represents the device's local key and is required if the device uses the Tuya protocol version 3.3 or above. Other information (i.e. "host", protocol version, etc.) is retrieved by listening to the devices present on the network.
 
 The devices "model" and "host" fields are saved in the configuration for information only. The application does not use these fields because information is provided by the devices itself during discovery.
@@ -114,9 +117,11 @@ This section describes what subset and variant of the local Tuya protocol is use
 #### Detect device:
 
 The device message:
+
 ```
 {'ip': '192.168.1.xxx', 'gwId': '<ID>', 'active': 2, 'ablilty': 0, 'encrypt': True, 'productKey': '<BLTID>', 'version': '3.3'}
 ```
+
 (ProductKey seems to be the BlueTooth's device ID.)
 
 That message is encrypted for versions 3.3 and higher, using a harcoded key.
@@ -124,36 +129,45 @@ That message is encrypted for versions 3.3 and higher, using a harcoded key.
 #### Query device status:
 
 The request:
+
 ```
 {"gwId":"<ID>","devId":"<ID>","uid":"<ID>","t":"<TIME>"}
 ```
+
 (gwId, DevId and uid are the same if the unit houses a single device. The 't' item is the current time.)
 
 The response from the device (a RGB liht bulb in this example):
+
 ```
 {"dps":{"20":true,"21":"white","22":1000,"23":0,"24":"003702cd034f","25":"000e0d0000000000000000c80000","26":0}}
 ```
+
 Each "numbered item" (data point) is a specific portion of the device's state: on/off state, color, dimming level, etc.
 
 #### Turn off the light
 
 The request for an RGB light bulb:
+
 ```
 {"devId":"<ID>","uid":"<ID>","t":"<TIME>","dps":{"20":false}}
 ```
+
 (DevId and uid are the same if the unit houses a single device. The 't' item is the current time.)
 
 The response:
+
 ```
 {"dps":{"20":false},"t":"<TIME>"}
 ```
 
 The request for a dimmer switch:
+
 ```
 {"devId":"<ID>","uid":"<ID>","t":"<TIME>","dps":{"1":false}}
 ```
 
 The response:
+
 ```
 TBD
 ```
@@ -161,24 +175,29 @@ TBD
 #### Turn on the light
 
 The request for an RGB light bulb:
+
 ```
 {"devId":"<ID>","uid":"<ID>","t":"<TIME>","dps":{"20":true}}
 ```
+
 (DevId and uid are the same if the unit houses a single device. The 't' item is the current time.)
 
 Note: item t may not need to be quoted (see response).
 
 The response:
+
 ```
 {"dps":{"20":true},"t":<TIME>}
 ```
 
 The request for a dimmer switch:
+
 ```
 {"devId":"<ID>","uid":"<ID>","t":"<TIME>","dps":{"1":true}}
 ```
 
 The response:
+
 ```
 TBD
 ```
@@ -195,6 +214,7 @@ The provided Makefile supports building private Debian packages. These are _not_
   no source package.
 
 To build a Debian package, use the `debian-package` target:
+
 ```
 make debian-package
 ```
