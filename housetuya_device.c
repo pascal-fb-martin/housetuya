@@ -299,7 +299,7 @@ static void housetuya_device_discovery (int fd, int mode) {
     int need_encryption = 0;
     int encrypt = echttp_json_search (json, ".encrypt");
     if (json[encrypt].type == PARSER_BOOL)
-        need_encryption = json[encrypt].value.bool;
+        need_encryption = json[encrypt].value.boolean;
 
     int version = echttp_json_search (json, ".version");
     if ((version < 0) || (json[version].type != PARSER_STRING)) return;
@@ -465,7 +465,7 @@ static void housetuya_device_receive (int fd, int mode) {
         return;
     }
 
-    housetuya_device_status_update (device, json[state].value.bool);
+    housetuya_device_status_update (device, json[state].value.boolean);
 }
 
 static void housetuya_device_send (int fd, int mode) {
