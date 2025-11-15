@@ -221,17 +221,16 @@ window.onload = function() {
    <title>Tuya Devices</title>
 </head>
 <body>
-   <table class="housetopcontainer">
-   <tr><td>
-   <table class="housetop">
+   <header>
+   <table>
    <tr>
    <td><a href="/tuya/index.html">Devices</a></td>
    <td><a href="/tuya/events.html">Events</a></td>
    <td><span>Config</span></td>
    </tr>
    </table>
-   </td></tr>
-   </table>
+   </header>
+   <section>
    <h1>Devices</h1>
    <form name="iolistform">
    <table class="housewidetable iolist">
@@ -258,6 +257,7 @@ window.onload = function() {
       <button class="actionbutton" onclick="addProduct()">Add Product</button>
       <button class="actionbutton" onclick="saveConfig()">Save</button>
    </div>
+   </section>
 </body>
 </html>
 
