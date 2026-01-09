@@ -97,6 +97,7 @@
 #include "echttp_json.h"
 #include "houselog.h"
 #include "houseconfig.h"
+#include "housestate.h"
 
 #include "housetuya_crypto.h"
 #include "housetuya_messages.h"
@@ -139,6 +140,7 @@ static int TuyaUdpPort[2] = {6666, 6667};
 
 static int TuyaUdpSocket[2] = {-1, -1};
 
+static int LiveState = 0;
 
 static const char *housetuya_hexdump (const char *data, int length) {
 
@@ -155,9 +157,12 @@ int housetuya_device_count (void) {
 }
 
 int housetuya_device_changed (void) {
-    int result = DeviceListChanged;
-    DeviceListChanged = 0;
-    return result;
+    if (DeviceListChanged) {
+        DeviceListChanged = 0;
+        housestate_changed (LiveState);
+        return 1;
+    }
+    return 0;
 }
 
 const char *housetuya_device_name (int point) {
@@ -217,6 +222,9 @@ static void housetuya_device_close (int i) {
 }
 
 static void housetuya_device_reset (int i, int status) {
+
+    if (Devices[i].status != status) housestate_changed (LiveState);
+
     Devices[i].commanded = Devices[i].status = status;
     Devices[i].pending = Devices[i].deadline = 0;
     housetuya_device_close (i);
@@ -402,6 +410,7 @@ static void housetuya_device_status_update (int device, int status) {
                 Devices[device].priority = 0; // Low priority when off.
         }
         Devices[device].status = status;
+        housestate_changed (LiveState);
     }
     Devices[device].detected = time(0);
 }
@@ -579,6 +588,7 @@ void housetuya_device_set
     if (Devices[device].detected) {
         housetuya_device_control (device, state);
     }
+    housestate_changed (LiveState);
 }
 
 void housetuya_device_periodic (time_t now) {
@@ -701,7 +711,8 @@ void housetuya_device_live_config (ParserContext context, int top) {
     }
 }
 
-const char *housetuya_device_initialize (int argc, const char **argv) {
+const char *housetuya_device_initialize (int argc, const char **argv, int livestate) {
+    LiveState = livestate;
     housetuya_device_discovery_sockets ();
     return 0;
 }
