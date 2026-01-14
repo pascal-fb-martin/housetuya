@@ -147,8 +147,10 @@ const char *housetuya_model_refresh (void) {
         ModelsSpace = needed;
     }
 
+    int *list = calloc (count, sizeof(int));
+    count = houseconfig_enumerate (models, list, count);
     for (i = 0; i < count; ++i) {
-        int model = houseconfig_array_object (models, i);
+        int model = list[i];
         if (model <= 0) continue;
         const char *id = houseconfig_string (model, ".id");
         const char *name = houseconfig_string (model, ".name");
@@ -174,6 +176,8 @@ const char *housetuya_model_refresh (void) {
             ModelListChanged = 1;
         }
     }
+    free (list);
+
     return 0;
 }
 

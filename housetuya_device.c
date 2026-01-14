@@ -1,4 +1,4 @@
-/* HouseKasa - A simple home web server for control of TP-Link Kasa Devices
+/* HouseTuya - A simple web service for control of Tuya devices
  *
  * Copyright 2021, Pascal Martin
  *
@@ -666,8 +666,10 @@ const char *housetuya_device_refresh (void) {
     }
 
     int i;
+    int *list = calloc (count, sizeof(int));
+    count = houseconfig_enumerate (devices, list, count);
     for (i = 0; i < count; ++i) {
-        int device = houseconfig_array_object (devices, i);
+        int device = list[i];
         if (device <= 0) continue;
         const char *name = houseconfig_string (device, ".name");
         const char *id = houseconfig_string (device, ".id");
@@ -686,6 +688,8 @@ const char *housetuya_device_refresh (void) {
         if (echttp_isdebug()) fprintf (stderr, "load device %s, ID %s%s\n", Devices[idx].name, Devices[idx].secret.id);
         housetuya_device_reset (idx, Devices[idx].status);
     }
+    free (list);
+
     return 0;
 }
 
