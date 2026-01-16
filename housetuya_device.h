@@ -21,7 +21,7 @@
  * housetuya_device.h - An implementation of the Tuya protocol.
  *
  */
-const char *housetuya_device_initialize (int argc, const char **argv, int livestate);
+void housetuya_device_initialize (int argc, const char **argv, int livestate);
 const char *housetuya_device_refresh (void);
 
 int housetuya_device_changed (void);

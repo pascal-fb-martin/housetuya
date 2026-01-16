@@ -22,7 +22,7 @@
  *
  * SYNOPSYS:
  *
- * const char *housetuya_device_initialize (int argc, const char **argv);
+ * void housetuya_device_initialize (int argc, const char **argv);
  *
  *    Initialize this module at startup.
  *
@@ -715,9 +715,8 @@ void housetuya_device_live_config (ParserContext context, int top) {
     }
 }
 
-const char *housetuya_device_initialize (int argc, const char **argv, int livestate) {
+void housetuya_device_initialize (int argc, const char **argv, int livestate) {
     LiveState = livestate;
     housetuya_device_discovery_sockets ();
-    return 0;
 }
 

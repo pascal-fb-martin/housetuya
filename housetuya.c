@@ -50,8 +50,6 @@
 #include "housetuya_model.h"
 #include "housetuya_device.h"
 
-static int WasLoadedFromDepot = 0;
-
 static int LiveState = 0;
 
 int housetuya_isdebug (void) {
@@ -179,15 +177,14 @@ static const char *housetuya_export (void) {
     return buffer;
 }
 
-static void housetuya_refresh (void) {
-    housetuya_device_refresh();
-    housetuya_model_refresh();
-}
-
-static void housetuya_save_to_depot (const char *data, int length) {
-    if (!WasLoadedFromDepot) return;
-    houselog_event ("CONFIG", houseconfig_name(), "SAVE", "TO DEPOT");
-    housedepositor_put ("config", houseconfig_name(), data, length);
+static const char *housetuya_refresh (void) {
+    const char *error;
+    error = housetuya_device_refresh();
+    if (error) return error;
+    error = housetuya_model_refresh();
+    if (error) return error;
+    housestate_changed (LiveState);
+    return 0;
 }
 
 static const char *housetuya_config (const char *method, const char *uri,
@@ -200,18 +197,18 @@ static const char *housetuya_config (const char *method, const char *uri,
             return response;
         }
         echttp_error (400, "No configuration");
-    } else if (strcmp ("POST", method) == 0) {
-        const char *error = houseconfig_update(data);
+        return "";
+    }
+
+    if (strcmp ("POST", method) == 0) {
+        const char *error = houseconfig_update(data, "USER CHANGE");
         if (error) {
             echttp_error (400, error);
-        } else {
-            housestate_changed (LiveState);
-            housetuya_refresh();
-            housetuya_save_to_depot (data, length);
         }
-    } else {
-        echttp_error (400, "invalid method");
+        return "";
     }
+
+    echttp_error (400, "invalid method");
     return "";
 }
 
@@ -226,23 +223,14 @@ static void housetuya_background (int fd, int mode) {
     houseportal_background (now);
     housetuya_device_periodic(now);
     if (housetuya_device_changed() || housetuya_model_changed()) {
-        const char *buffer = housetuya_export();
-        houseconfig_update(buffer);
-        housetuya_save_to_depot (buffer, strlen(buffer));
-        if (echttp_isdebug()) fprintf (stderr, "Configuration saved\n");
+        if (houseconfig_active()) {
+            houseconfig_save (housetuya_export(), "AUTODETECT");
+        }
     }
     housediscover (now);
     houselog_background (now);
+    houseconfig_background (now);
     housedepositor_periodic (now);
-}
-
-static void housetuya_config_listener (const char *name, time_t timestamp,
-                                       const char *data, int length) {
-    houselog_event ("CONFIG", houseconfig_name(), "LOAD", "FROM DEPOT %s", name);
-    if (!houseconfig_update (data)) {
-        housetuya_refresh();
-        WasLoadedFromDepot = 1;
-    }
 }
 
 static void housetuya_protect (const char *method, const char *uri) {
@@ -274,22 +262,14 @@ int main (int argc, const char **argv) {
     houselog_initialize ("tuya", argc, argv);
     housedepositor_initialize (argc, argv);
 
-    houseconfig_default ("--config=tuya");
-    error = houseconfig_load (argc, argv);
+    error = houseconfig_initialize ("tuya", housetuya_refresh, argc, argv);
     if (error) {
         houselog_trace
             (HOUSE_FAILURE, "CONFIG", "Cannot load configuration: %s\n", error);
     }
 
     LiveState = housestate_declare ("live");
-
-    error = housetuya_device_initialize (argc, argv, LiveState);
-    if (error) {
-        houselog_trace
-            (HOUSE_FAILURE, "PLUG", "Cannot initialize: %s\n", error);
-        exit(1);
-    }
-    housedepositor_subscribe ("config", houseconfig_name(), housetuya_config_listener);
+    housetuya_device_initialize (argc, argv, LiveState);
 
     echttp_cors_allow_method("GET");
     echttp_protect (0, housetuya_protect);
