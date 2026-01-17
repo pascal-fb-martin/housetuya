@@ -150,7 +150,7 @@ const char *housetuya_model_refresh (void) {
     int *list = calloc (count, sizeof(int));
     count = houseconfig_enumerate (models, list, count);
     for (i = 0; i < count; ++i) {
-        int model = list[i];
+        int model = houseconfig_object (list[i], 0);
         if (model <= 0) continue;
         const char *id = houseconfig_string (model, ".id");
         const char *name = houseconfig_string (model, ".name");

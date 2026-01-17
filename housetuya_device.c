@@ -669,7 +669,7 @@ const char *housetuya_device_refresh (void) {
     int *list = calloc (count, sizeof(int));
     count = houseconfig_enumerate (devices, list, count);
     for (i = 0; i < count; ++i) {
-        int device = list[i];
+        int device = houseconfig_object (list[i], 0);
         if (device <= 0) continue;
         const char *name = houseconfig_string (device, ".name");
         const char *id = houseconfig_string (device, ".id");
