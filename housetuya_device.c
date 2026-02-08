@@ -564,8 +564,8 @@ void housetuya_device_set
         comment[0] = 0;
 
     if (echttp_isdebug()) {
-        if (pulse) fprintf (stderr, "set %s to %s at %ld (pulse %ds)%s\n", Devices[device].name, namedstate, now, pulse, comment);
-        else       fprintf (stderr, "set %s to %s at %ld%s\n", Devices[device].name, namedstate, now, comment);
+        if (pulse) fprintf (stderr, "set %s to %s at %lld (pulse %ds)%s\n", Devices[device].name, namedstate, (long long)now, pulse, comment);
+        else       fprintf (stderr, "set %s to %s at %lld%s\n", Devices[device].name, namedstate, (long long)now, comment);
     }
 
     if (pulse > 0) {
