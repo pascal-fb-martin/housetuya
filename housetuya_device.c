@@ -126,7 +126,6 @@ struct DeviceMap {
     int control; // Data point to use for on/off controls.
 };
 
-static struct sockaddr_in DeviceEmptyAddress = {0};
 static struct DeviceMap DeviceEmptyContext = {0};
 
 static int DeviceListChanged = 0;
@@ -272,7 +271,7 @@ static void housetuya_device_discovery (int fd, int mode) {
     char raw[1024];
     char input[1024];
     struct sockaddr_in addr;
-    int addrlen = sizeof(addr);
+    socklen_t addrlen = sizeof(addr);
 
     int size = recvfrom (fd, raw, sizeof(raw), 0,
                          (struct sockaddr *)(&addr), &addrlen);
@@ -288,7 +287,6 @@ static void housetuya_device_discovery (int fd, int mode) {
         return;
     }
     if (size <= 4) return;
-    int ip = htonl(addr.sin_addr.s_addr);
 
     ParserToken json[16];
     int jsoncount = 16;
@@ -685,7 +683,7 @@ const char *housetuya_device_refresh (void) {
                                          houseconfig_string (device, ".key"));
         housetuya_device_refresh_string (&(Devices[idx].description),
                                          houseconfig_string (device, ".description"));
-        if (echttp_isdebug()) fprintf (stderr, "load device %s, ID %s%s\n", Devices[idx].name, Devices[idx].secret.id);
+        if (echttp_isdebug()) fprintf (stderr, "load device %s, ID %s\n", Devices[idx].name, Devices[idx].secret.id);
         housetuya_device_reset (idx, Devices[idx].status);
     }
     free (list);

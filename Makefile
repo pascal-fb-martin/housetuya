@@ -42,7 +42,7 @@ clean:
 rebuild: clean all
 
 %.o: %.c
-	gcc -c -g -O -o $@ $<
+	gcc -c -Wall -g -O -o $@ $<
 
 housetuya: $(OBJS)
 	gcc -g -O -o housetuya $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lgpiod -lmagic -lmagic -lrt

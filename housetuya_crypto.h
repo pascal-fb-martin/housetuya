@@ -21,8 +21,8 @@
  */
 const char *housetuya_discoverykey (void);
 
-int housetuya_encrypt (const unsigned char *key,
-                       char *encrypted, char *clear, int length);
-int housetuya_decrypt (const unsigned char *key,
+int housetuya_encrypt (const char *key,
+                       char *encrypted, const char *clear, int length);
+int housetuya_decrypt (const char *key,
                        const char *encrypted, char *clear, int length);
 

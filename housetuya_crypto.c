@@ -26,9 +26,9 @@
  *
  *    Return the hardcoded Tuya discovery message key.
  *
- * int housetuya_encrypt (const unsigned char *key,
- *                        char *encrypted, char *clear, int length);
- * int housetuya_decrypt (const unsigned char *key,
+ * int housetuya_encrypt (const char *key,
+ *                        char *encrypted, const char *clear, int length);
+ * int housetuya_decrypt (const char *key,
  *                        const char *encrypted, char *clear, int length);
  *
  *    Encrypt and decrypt a Tuya message.
@@ -52,7 +52,7 @@ static char TuyaDiscoveryPassword[] = "yGAdlopoPVldABfn";
 static unsigned char TuyaDiscoveryKey[EVP_MAX_MD_SIZE] = {0};
 
 static void TuyaMd5Digest (const char *password, unsigned char *digest) {
-  int length;
+  unsigned int length;
   EVP_MD_CTX *md5 = EVP_MD_CTX_new();
 
   EVP_DigestInit(md5, EVP_md5());
@@ -71,25 +71,31 @@ const char *housetuya_discoverykey (void) {
         TuyaMd5Digest (TuyaDiscoveryPassword, TuyaDiscoveryKey);
         Initialized = 1;
     }
-    return TuyaDiscoveryKey;
+    return (const char *)TuyaDiscoveryKey;
 }
 
-int housetuya_encrypt (const unsigned char *key,
-                       char *encrypted, char *clear, int length) {
+int housetuya_encrypt (const char *key,
+                       char *encrypted, const char *clear, int length) {
+
+    const unsigned char *evpkey = (const unsigned char *)key;
+    const unsigned char *evpclear = (const unsigned char *)clear;
+          unsigned char *evpencrypted = (unsigned char *)encrypted;
+    unsigned int evplength = (unsigned int)length;
     int cursor, crypted_length;
+
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) return 0;
-    if (!EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), 0, key, 0)) {
+    if (!EVP_EncryptInit_ex(ctx, EVP_aes_128_ecb(), 0, evpkey, 0)) {
         DEBUG ("** EVP_DecryptInit_ex error\n");
         return 0;
     }
     EVP_CIPHER_CTX_set_key_length (ctx, 16);
-    if (!EVP_EncryptUpdate(ctx, encrypted, &cursor, clear, length)) {
+    if (!EVP_EncryptUpdate(ctx, evpencrypted, &cursor, evpclear, evplength)) {
         DEBUG ("** EVP_EncryptUpdate error\n");
         return 0;
     }
     crypted_length = cursor;
-    if (!EVP_EncryptFinal_ex(ctx, encrypted+cursor, &cursor)) {
+    if (!EVP_EncryptFinal_ex(ctx, evpencrypted+cursor, &cursor)) {
         DEBUG ("** EVP_EncryptFinal_ex error\n");
         return 0;
     }
@@ -99,22 +105,28 @@ int housetuya_encrypt (const unsigned char *key,
     return crypted_length;
 }
 
-int housetuya_decrypt (const unsigned char *key,
+int housetuya_decrypt (const char *key,
                        const char *encrypted, char *clear, int length) {
+
+    const unsigned char *evpkey = (const unsigned char *)key;
+          unsigned char *evpclear = (unsigned char *)clear;
+    const unsigned char *evpencrypted = (const unsigned char *)encrypted;
+    unsigned int evplength = (unsigned int)length;
     int cursor, clear_length;
+
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) return 0;
-    if (!EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(), 0, key, 0)) {
+    if (!EVP_DecryptInit_ex(ctx, EVP_aes_128_ecb(), 0, evpkey, 0)) {
         DEBUG ("** EVP_DecryptInit_ex error\n");
         return 0;
     }
     EVP_CIPHER_CTX_set_key_length (ctx, 16);
-    if (!EVP_DecryptUpdate(ctx, clear, &cursor, encrypted, length)) {
+    if (!EVP_DecryptUpdate(ctx, evpclear, &cursor, evpencrypted, evplength)) {
         DEBUG ("** EVP_DecryptUpdate error\n");
         return 0;
     }
     clear_length = cursor;
-    if (!EVP_DecryptFinal_ex(ctx, clear+cursor, &cursor)) {
+    if (!EVP_DecryptFinal_ex(ctx, evpclear+cursor, &cursor)) {
         DEBUG ("** EVP_DecryptFinal_ex error\n");
         return 0;
     }
