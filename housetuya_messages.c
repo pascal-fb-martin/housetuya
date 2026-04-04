@@ -144,7 +144,6 @@ static int housetuya_encode (char *buffer, int size, const TuyaSecret *access,
     int cursor = housetuya_start_envelop (buffer, sequence, code);
     if ((code != TUYA_QUERY) && (code != TUYA_UPDATE)) {
         // REFRESH and QUERY have no extended header. Others do.
-        memset (buffer+cursor, 0, 15);
         strncpy (buffer+cursor, access->version, 15);
         cursor += 15;
     }
