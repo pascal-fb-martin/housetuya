@@ -132,9 +132,8 @@ static int housetuya_end_envelop_pre34 (char *buffer, int length) {
 }
 
 static int housetuya_encode (char *buffer, int size, const TuyaSecret *access,
-                             int code, int sequence, char *data) {
+                             int code, int sequence, char *data, int length) {
 
-    int length = strlen(data);
     if (length > size-15) {
         printf ("** Data too large to encode: %d (max %d)\n", length, size-15);
         return 0;
@@ -159,10 +158,12 @@ int housetuya_control (char *buffer, int size, const TuyaSecret *access,
     static const char Format[] =
         "{\"devId\":\"%s\",\"uid\":\"%s\",\"t\":\"%d\",\"dps\":{\"%d\":%s}}";
     char command[1024];
-    snprintf (command, sizeof(command), Format,
-              access->id, access->id, (int)time(0), dps, value?"true":"false");
+    int length = snprintf (command, sizeof(command), Format,
+                           access->id, access->id,
+                           (int)time(0), dps, value?"true":"false");
     DEBUG ("Command: %s\n", command);
-    return housetuya_encode (buffer, size, access, TUYA_CONTROL, sequence, command);
+    return housetuya_encode (buffer, size,
+                             access, TUYA_CONTROL, sequence, command, length);
 }
 
 int housetuya_query (char *buffer, int size, const TuyaSecret *access,
@@ -171,9 +172,10 @@ int housetuya_query (char *buffer, int size, const TuyaSecret *access,
     static const char Format[] =
         "{\"devId\":\"%s\",\"uid\":\"%s\",\"t\":\"%d\"}";
     char command[1024];
-    snprintf (command, sizeof(command), Format,
-              access->id, access->id, (int)time(0));
-    return housetuya_encode (buffer, size, access, TUYA_QUERY, sequence, command);
+    int length = snprintf (command, sizeof(command), Format,
+                           access->id, access->id, (int)time(0));
+    return housetuya_encode (buffer, size,
+                             access, TUYA_QUERY, sequence, command, length);
 }
 
 static int housetuya_open_envelop (const char *version,
