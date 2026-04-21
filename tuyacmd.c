@@ -213,7 +213,7 @@ static int tuyacmd_discovery (time_t wait) {
     char buffer[1025];
     int code;
     struct sockaddr_in addr;
-    int addrlen = sizeof(addr);
+    socklen_t addrlen = sizeof(addr);
 
     static TuyaSecret DiscoverySecret = {0};
     if (!DiscoverySecret.key)
@@ -269,15 +269,9 @@ int main (int argc, char **argv) {
     TuyaSecret secret;
 
     const char *host = 0;
-    const char *id = 0;
-    const char *key = 0;
     const char *type = 0;
     const char *cmd = 0;
-    const char *version = "3.3";
     int dps = 20;
-
-    char buffer[256];
-
 
     secret.version = "3.3";
 

@@ -48,7 +48,7 @@ housetuya: $(OBJS)
 	gcc -g -O -o housetuya $(OBJS) -lhouseportal -lechttp -lssl -lcrypto -lgpiod -lmagic -lmagic -lrt
 
 tuyacmd: tuyacmd.c housetuya_messages.o housetuya_crypto.o housetuya_crc.o
-	gcc -g -O -o tuyacmd tuyacmd.c housetuya_messages.o housetuya_crypto.o housetuya_crc.o -lssl -lcrypto -lrt
+	gcc -g -Wall -O -o tuyacmd tuyacmd.c housetuya_messages.o housetuya_crypto.o housetuya_crc.o -lssl -lcrypto -lrt
 
 # Distribution agnostic file installation -----------------------
 
